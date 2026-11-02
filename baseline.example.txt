@@ -1,0 +1,10 @@
+# baseline.txt format — generated per-machine by: audit.sh --baseline
+# One inventory item per line, sorted. Your real baseline.txt is git-ignored
+# and must never be shared: it lists your machine's admins and extensions.
+admin:alice
+admin:root
+chrome-ext:abcdefghijklmnopqrstuvwxyz012345
+launchd:com.example.agent.plist
+listener:127.0.0.1:8080
+sysext:com.example.endpoint
+zshrc-sha256:0000000000000000000000000000000000000000000000000000000000000000

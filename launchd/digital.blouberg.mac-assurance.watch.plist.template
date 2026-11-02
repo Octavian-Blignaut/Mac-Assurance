@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>digital.blouberg.mac-assurance.watch</string>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>@ASSURANCE_DIR@/daily.sh</string><string>--watch</string></array>
+<key>WatchPaths</key><array><string>@HOME@/Library/LaunchAgents</string><string>/Library/LaunchAgents</string><string>/Library/LaunchDaemons</string></array>
+<key>ThrottleInterval</key><integer>300</integer>
+<key>WorkingDirectory</key><string>@ASSURANCE_DIR@</string>
+<key>StandardOutPath</key><string>@ASSURANCE_DIR@/reports/launchd-watch.out</string>
+<key>StandardErrorPath</key><string>@ASSURANCE_DIR@/reports/launchd-watch.err</string>
+</dict></plist>

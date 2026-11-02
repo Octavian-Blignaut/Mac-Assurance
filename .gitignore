@@ -1,0 +1,10 @@
+# Reports contain sensitive host inventory — never commit
+reports/
+fixes-pending.txt
+__pycache__/
+.DS_Store
+
+# Per-machine state — never share
+baseline.txt
+config.local.sh
+dist/
