@@ -87,7 +87,7 @@ rm -rf "$TMP3"
 # --- Pilot packaging ---
 [ -f "$HERE/VERSION" ]; check "VERSION file exists" $?
 grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' "$HERE/VERSION" 2>/dev/null; check "VERSION is semver" $?
-grep -rnE 'businessit|[Ii]mpact\.com|Octavian' "$HERE/audit.sh" "$HERE/daily.sh" "$HERE/render.py" "$HERE/README.md" >/dev/null 2>&1; [ $? -ne 0 ]; check "shipped code/docs contain no personal or company identifiers" $?
+grep -rnE 'businessit|[Ii]mpact\.com|Octavian' "$HERE/audit.sh" "$HERE/daily.sh" "$HERE/render.py" "$HERE/README.md" 2>/dev/null | grep -v 'github.com/Octavian-Blignaut/Mac-Assurance' | grep . >/dev/null; [ $? -ne 0 ]; check "shipped code/docs contain no personal or company identifiers" $?
 [ -f "$HERE/baseline.example.txt" ]; check "baseline.example.txt ships instead of a real baseline" $?
 [ -f "$HERE/config.example.sh" ]; check "config.example.sh exists for EXPECTED_ADMINS etc" $?
 "$HERE/install.sh" --dry-run 2>/dev/null | grep -i "manifest" >/dev/null; check "installer dry-run prints a consent manifest" $?

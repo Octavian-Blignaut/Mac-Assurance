@@ -1,134 +1,196 @@
-# Mac Assurance
+# Mac Assurance 🛡️
 
-**A read-only security audit + approve-first fix engine for a managed Mac.**
-Built as a learning project on an employer-managed Mac (endpoint protection,
-web proxy, and MDM all provided by IT). It *observes* the corporate stack —
-it never alters it — and turns "is my machine safe?" into a daily,
-evidence-based answer.
+**A friendly daily health-check for your Mac.**
 
-```
-Detect  →  baseline diff  →  daily HTML digest  →  queue fix  →  YOU approve  →  act + log
-```
+Every morning at **07:30**, Mac Assurance gives your Mac a quick once-over —
+is the disk encrypted, is your protection still running, has anything new
+quietly installed itself, is anything listening that shouldn't be — and opens
+a simple report in your browser: ✅ all clear, or ⚠️ “have a look at this.”
 
-## Quick start
+It never changes anything without asking you first. Ever.
 
-```bash
-./install.sh                    # deploy runtime + LaunchAgents (no admin rights needed)
-~/Library/MacAssurance/daily.sh # run today's check now (opens the HTML report)
-./audit.sh                      # full scan in this terminal
-./tests/run-tests.sh            # 47 checks, all should pass
-./uninstall.sh                  # remove the agents cleanly (from the runtime copy)
-```
+---
 
-The 07:30 daily job and the persistence watcher install as user LaunchAgents
-(`digital.blouberg.mac-assurance.*`). Runtime lives in `~/Library/MacAssurance/`
-because `launchd` cannot read scripts on `~/Desktop` (macOS TCC) — this folder
-is the source of truth; edit here, then re-run `./install.sh` to deploy.
+## 👋 Start here (5 minutes, no admin password needed)
 
-## What it checks
+**You need:** a Mac, and Terminal (press `⌘ + Space`, type `Terminal`, hit Enter).
 
-FileVault · SIP · Gatekeeper · endpoint-protection extensions still active · firewall
-state (report-only) · admin accounts · SSH/screen-sharing surface · LaunchAgent/
-Daemon persistence inventory · network listeners (localhost vs wildcard) · SSH
-key passphrases (existence only — key contents are never read) · Chrome
-extensions · screen-lock delay · `/etc/hosts` · Time Machine recency — each with
-a one-line *"why it matters"* so every report teaches something.
-
-**The baseline diff is the real detector.** `baseline.txt` is the known-good
-inventory; a *new* admin, listener, extension, or launch item you can't explain
-is the finding. Tools find known-bad; diffs find new.
-
-## Reports & storage
-
-- Daily digest: notification + an HTML report (ocean/kelp branded,
-  verdict banner + PASS/WARN/FAIL/UNKNOWN cards) that **opens itself** at 07:30.
-  Watcher-triggered runs notify only — they never auto-open.
-- Hot: `~/Library/MacAssurance/reports/YYYY-MM/` — 90 days (~5 KB/day).
-- Cold: `monthly.sh` writes `reports/archive/YYYY-MM-rollup.md` + `.tar.gz` —
-  kept forever (~2 MB/year total).
-- Full reports are sensitive inventory (admins, listeners, extensions):
-  **never commit them, never send them off-machine.** Commit `baseline.txt`
-  changes instead — `git log` becomes your "when did this change?" timeline.
-
-## Fix Engine v1 (approve-first)
-
-Detection never acts. When Burp Suite (`:8080`) or Grammarly (`:49315`) is
-left listening, a fix is *queued*:
+### 1. Get the code
 
 ```bash
-~/Library/MacAssurance/fix.sh            # walk the queue: y / n / q
-~/Library/MacAssurance/fix.sh --list
-~/Library/MacAssurance/fix.sh --dry-run stop-burp
-~/Library/MacAssurance/fix.sh --reopen burp    # undo
+cd ~/Desktop
+git clone https://github.com/Octavian-Blignaut/Mac-Assurance.git
+cd Mac-Assurance
 ```
 
-The allowlist is hard-coded (`stop-burp`, `stop-grammarly`) — any other
-target, even a hand-forged queue entry like `stop-eset`, is **refused**.
-Everything applied is written to `reports/actions.log`. Endpoint protection,
-web proxy, MDM, firewall, system extensions, and admin accounts are a permanent
-deny-list: alert + escalate to IT, never self-fix.
+No `git`? On the GitHub page: **Code → Download ZIP**, unzip it, then in Terminal:
 
-## Safety model
+```bash
+cd ~/Downloads/Mac-Assurance-main
+```
 
-| Tier | Examples | Rule |
+### 2. Install it
+
+```bash
+./install.sh
+```
+
+It will show you a short manifest — exactly what it's about to do — and ask
+`Proceed? [y/N]`. Type `y`.
+
+**What just happened (in plain English):**
+- A copy of the tool was placed in `~/Library/MacAssurance` (where macOS lets
+  scheduled jobs run from)
+- Two behind-the-scenes helpers were registered: one runs the check at 07:30
+  daily, one notices if a program installs a new “launch item” (a common way
+  software — good and bad — makes itself start automatically)
+- It took a snapshot of *your* Mac called a **baseline**: your admin accounts,
+  listening apps, and extensions. Future reports compare against this snapshot.
+
+**What it will never do:** ask for your admin password, change your firewall
+or system settings, touch your company security tools, delete files, or send
+anything anywhere. It has no “phone home” — there is no server.
+
+### 3. See your first report right now
+
+```bash
+~/Library/MacAssurance/daily.sh
+```
+
+A report opens in your browser. That's exactly what you'll get every morning.
+
+---
+
+## 📖 Reading your report (30 seconds)
+
+At the top you'll see one of three verdicts:
+
+| Verdict | Meaning | What you do |
 |---|---|---|
-| Observe | All audit checks | Read-only, no `sudo`, ever (tests enforce this) |
-| Approve-first | Stop Burp/Grammarly listeners | Queued; only your `y` applies it; logged + reopenable |
-| Never | Endpoint/MDM tooling, firewall, `/Library` daemons, admins | Alert + IT escalation template (see below) |
+| ✅ **All clear** | Nothing failed, nothing unexplained changed | Nothing. Close the tab ☕ |
+| ⚠️ **New or removed items** | Something differs from your baseline | Find the **BASELINE DIFF** section (below) |
+| ❌ **Attention needed** | A real check failed (e.g. protection stopped) | Contact IT — don't try to fix security tooling yourself |
 
-Escalate to IT with: host name, macOS version, finding, timestamp, and
-"I have not changed any managed settings." Identifying a root-owned listener:
+Under the verdict are four counters — how many checks **passed**, **warned**,
+**failed**, or couldn't be answered (**unknown** — treat unknown as “worth a
+look”, never as “fine”).
+
+### The one section that matters most: BASELINE DIFF
+
+Every item is listed as **NEW:** or **REMOVED:**. Ask yourself one question:
+
+> **“Can I explain this?”**
+
+- *“NEW: Spotify launch item”* — you installed Spotify yesterday. Explained. ✅
+- *“NEW admin account I don't recognise”* or a listener you can't name —
+  **not explained. That's the finding.** Contact IT (template below).
+
+If everything is explained and you want the tool to learn the new normal,
+refresh your baseline and write down *why* in a note to yourself:
 
 ```bash
-sudo lsof -iTCP:8021 -sTCP:LISTEN -P -n   # run it yourself — never share your password
+~/Library/MacAssurance/audit.sh --baseline
 ```
 
-## Layout
+Only ever do this for changes you can explain.
 
-| File | Job |
+---
+
+## 🔧 “Fixes” — the tool asks, you decide
+
+Sometimes the report queues a small cleanup (for example: *“Burp Suite is
+still listening — stop it?”*). Nothing is ever fixed automatically. To review:
+
+```bash
+~/Library/MacAssurance/fix.sh
+```
+
+It walks you through each item in plain language:
+
+- `y` — yes, do it (it confirms the result and writes it to a log)
+- `n` — not now (it will ask again tomorrow if the thing is still there)
+- `q` — quit, decide later
+
+Changed your mind after a fix? Reopen the app:
+
+```bash
+~/Library/MacAssurance/fix.sh --reopen burp
+```
+
+Only two fixes exist today — stopping the Burp Suite or Grammarly helpers
+when they've been left running. Everything company-managed is permanently
+off-limits to the tool: it will alert you instead of touching it.
+
+---
+
+## 🗓️ Your routine (that's it — this is the whole ask)
+
+| When | What |
 |---|---|
-| `audit.sh` | The read-only scanner → dated Markdown report |
-| `daily.sh` | Scheduler entry: audit → headline → HTML → notify → open (daily only) |
-| `render.py` | Markdown → branded HTML (stdlib Python) |
-| `queue-fix.sh` / `fix.sh` | Pending-fix queue + approve-first engine |
-| `monthly.sh` | Rollup + compressed archive per finished month |
-| `notify.sh` | macOS notification (osascript) |
-| `launchd/*.plist.template` | Daily 07:30 + WatchPaths persistence watcher |
-| `install.sh` / `uninstall.sh` | Deploy/remove runtime + agents, idempotent |
-| `baseline.txt` | Known-good inventory (commit your explained changes) |
-| `tests/run-tests.sh` | Full test suite — run after every edit |
+| Every morning | Glance at the report that opens. ✅ → done |
+| When it shows ⚠️/❌ | Read the diff. Explained → re-baseline. Unexplained → IT |
+| Monthly | When you plug in a backup drive, notice whether it nags about backups |
 
-## Findings that shaped it (Oct 30 – Nov 1, 2026)
+## 🆘 Something's wrong?
 
-- No compromise indicators: FileVault/SIP/Gatekeeper on, no rogue persistence,
-  logins, or `authorized_keys`; wildcard listener `*:51348` turned out to be
-  Apple's `symptomsd` (verified by owner-run `sudo lsof` + code signature).
-- Real hygiene wins: 5 SSH keys without passphrases, 60 s screen-lock delay,
-  forgotten Burp/Adobe listeners (disabled/stopped, re-baselined as explained).
-- `launchd` + TCC: scripts must live in `~/Library`, not `~/Desktop`.
-- A deleted `audit.sh` was restored from the runtime copy — the split paid off.
+**The report didn't open this morning**
+Run it by hand: `~/Library/MacAssurance/daily.sh`. Still nothing? Check the
+log: `tail ~/Library/MacAssurance/reports/daily.log`
 
-## Pilot (v0.1.0) — what to expect
+**I don't get notifications**
+System Settings → Notifications → find *Script Editor* (notifications arrive
+under that name — a macOS quirk) → allow notifications. The report file still
+exists regardless: `open ~/Library/MacAssurance/reports/` and pick the newest.
 
-You are 1 of a small pilot. Install takes 2 minutes and needs no admin rights:
+**My security software mentioned “Mac Assurance”**
+Expected, and honestly good — it noticed our two helpers. They're named
+`digital.blouberg.mac-assurance.daily` and `.watch`. You can show IT this
+repo; every line is readable and nothing runs hidden.
+
+**It flagged a change right after I installed/updated something**
+That's the design working. If you can explain it, re-baseline (above).
+
+**I need to contact IT — what do I say?**
+> Hi IT — my Mac Assurance check on [date] flagged: [finding]. Mac is on
+> macOS [version]. I haven't changed any managed settings. Expected, or
+> something to look at?
+
+Don't paste a full report into chat/tickets — it lists your machine's
+accounts and apps. The one relevant section (e.g. BASELINE DIFF) is enough.
+
+---
+
+## 🧹 Uninstall (clean, complete)
 
 ```bash
-git clone <this-private-repo> && cd mac-assurance
-./install.sh            # read the manifest, answer y
-./tests/run-tests.sh    # optional: prove it on your machine
+~/Library/MacAssurance/uninstall.sh
 ```
 
-Every morning at 07:30 an HTML report opens with your PASS/WARN/FAIL counts.
-If a launch item changes, you may get an extra notification. Fixes are never
-applied without you running `fix.sh` and answering `y`.
-Uninstall anytime: `~/Library/MacAssurance/uninstall.sh` (see also `./uninstall.sh`).
-Please file pilot feedback via the GitHub issue template: install smoothness,
-any alert from your existing security tooling mentioning our agents, whether
-you actually read the digest, and one thing that confused you.
+That stops and removes both helpers. Your past reports stay in
+`~/Library/MacAssurance/reports/` if you want them; delete the
+`~/Library/MacAssurance` folder to remove everything.
 
-## Roadmap
+## 🔄 Updating
 
-- [ ] Identify the last unknown listener (`127.0.0.1:8021`, root-owned)
-- [ ] Screen-lock drift + Adobe re-enable rules (approve-first, same engine)
-- [ ] Quarantine-unknown-LaunchAgent fix (move, never delete)
-- [ ] LuLu/BlockBlock — only with IT approval, they're IT's layer to bless
+```bash
+cd <where you cloned it>/Mac-Assurance
+git pull && ./install.sh
+```
+
+## 🧪 For the curious / technical
+
+- Full test suite (run it any time): `./tests/run-tests.sh`
+- All checks explained: each report section has a *“Why it matters”* line —
+  the reports are written to teach, not just to score.
+- Design & safety model: `SECURITY.md` · Changes: `CHANGELOG.md`
+- Per-machine settings (expected admin accounts etc.): copy
+  `config.example.sh` to `config.local.sh` and edit — it's ignored by git,
+  as are your `baseline.txt` and reports. Never share those files.
+
+## Pilot feedback 🙏
+
+You're in a small pilot — please tell us how it went using the
+**Pilot feedback** issue template on GitHub: how the install felt, whether
+you actually read the morning report, and one thing that confused you.
+That feedback decides whether this grows up into something IT rolls out
+to everyone.
